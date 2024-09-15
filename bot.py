@@ -3,7 +3,7 @@ import time
 import json
 from colorama import Fore, Style
 from fake_useragent import UserAgent
-from datetime import datetime,timedelta
+from datetime import datetime
 
 # Load authorization data from the tokens.txt file
 with open('tokens.txt', 'r') as file:
@@ -23,18 +23,7 @@ headers = {
     'sec-fetch-site': 'same-site',
 }
 
-task_execution_tracker = {}
 
-# Function to print the countdown
-def display_countdown(remaining_seconds):
-    while remaining_seconds > 0:
-        hours, remainder = divmod(remaining_seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        countdown_str = f"{hours:02}:{minutes:02}:{seconds:02}"
-        print(Fore.YELLOW + f"Waiting for next execution: {countdown_str} remaining..." + Style.RESET_ALL, end='\r')
-        time.sleep(1)
-        remaining_seconds -= 1
-    print()  # Move to the next line after countdown is done
 
 # Function to fetch task list
 def get_task_list(authorization_data):
@@ -103,20 +92,6 @@ def execute_task_by_type(task_category, task, authorization_data, completed_task
 
     headers['authorization'] = f'tma {authorization_data}'
 
-    # Track task execution time
-    now = datetime.now()
-    task_key = (task_category, task_id)
-    if task_key in task_execution_tracker:
-        last_exec_time = task_execution_tracker[task_key]
-        if (now - last_exec_time) < timedelta(hours=6):
-            remaining_time = timedelta(hours=6) - (now - last_exec_time)
-            remaining_seconds = int(remaining_time.total_seconds())
-            print(Fore.YELLOW + f"Task '{task_type}' with ID {task_id} is on cooldown." + Style.RESET_ALL)
-            display_countdown(remaining_seconds)
-            return
-    else:
-        task_execution_tracker[task_key] = now  # Set first execution time
-    
     try:
         response = requests.get(api_url, headers=headers)
         response.raise_for_status()
@@ -124,8 +99,6 @@ def execute_task_by_type(task_category, task, authorization_data, completed_task
         result = response.json()
         if result.get('code') == 200 and result.get('data') is True:
             print(Fore.GREEN + f"Task '{task_type}' with ID {task_id} executed successfully!" + Style.RESET_ALL)
-            # Update the execution time
-            task_execution_tracker[task_key] = now
         else:
             print(Fore.RED + f"Task '{task_type}' with ID {task_id} failed." + Style.RESET_ALL)
 
@@ -183,14 +156,22 @@ def quack_execute(authorization_data):
 
         data = response.json()
 
-        decibel = data.get('data', {}).get('decibel')
-        quack_times = data.get('data', {}).get('quackTimes')
+        # Debugging: Print the raw response data
+        # print(Fore.CYAN + "Quack Execute Response Data:" + Style.RESET_ALL, json.dumps(data, indent=4))
 
-        if decibel and quack_times:
-            print(Fore.GREEN + "Balance:" + Style.RESET_ALL, decibel)
-            print(Fore.GREEN + "Total Click:" + Style.RESET_ALL, quack_times)
+        # Ensure 'data' is a dictionary and has the expected structure
+        if isinstance(data, dict) and 'data' in data:
+            result_data = data['data']
+            decibel = result_data.get('decibel')
+            quack_times = result_data.get('quackTimes')
+
+            if decibel is not None and quack_times is not None:
+                print(Fore.GREEN + "Balance:" + Style.RESET_ALL, decibel)
+                print(Fore.GREEN + "Total Click:" + Style.RESET_ALL, quack_times)
+            else:
+                print(Fore.RED + "Decibel or Quack Times not found in response." + Style.RESET_ALL)
         else:
-            print(Fore.RED + "Decibel or Quack Times not found in response." + Style.RESET_ALL)
+            print(Fore.RED + "Invalid response format or missing 'data' key." + Style.RESET_ALL)
 
     except requests.exceptions.RequestException as e:
         print(Fore.RED + f"Error executing quack: {e}" + Style.RESET_ALL)
