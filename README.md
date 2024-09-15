@@ -1,5 +1,6 @@
 # DuckChain Clicker
 🖱️ Join Here 🦆 [DuckChain](https://t.me/DuckChain_bot/quack?startapp=GYs5RJKu)
+🖱️ Join Telegram [Update Tools](t.me/airdropdigitalcuan)
 
 ### Features
 - Clik per Second 
